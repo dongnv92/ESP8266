@@ -19,7 +19,7 @@ SMSGSM sms;
 #include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
 #include <EEPROM.h>
 
-const String host         = "http://api.xoidua.com/test.php"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
+const String host         = "http://sms.xoidua.com/api/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
 const int   time_reload   = 10000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1000;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
@@ -38,7 +38,7 @@ void setup() {
 }
 
 void loop() {
-  String response = requestApi(host, "act=act&type=type");
+  String response = requestApi(host, "act=sms&type=get_sms_not_send&network=viettel");
   processResponse(response);
   delay(time_reload);  //Time Post Data Reload
 }
@@ -54,13 +54,13 @@ void processResponse(String response){
     return;
   }
 
-  JsonArray repos = doc["list"];
+  JsonArray repos = doc["data"];
   // Print the values
   Serial.println("Dang phan tich du lieu lay duoc tu server gui ve ...");
   for (JsonObject repo : repos) { 
-    const int id        = repo["id"];
-    const char* phone   = repo["phone"];
-    const char* content = repo["content"];
+    const int id        = repo["sms_id"];
+    const char* phone   = repo["sms_phone"];
+    const char* content = repo["sms_content"];
     sendSMS(id, phone, content);        
     delay(time_send_sms);
   }
@@ -71,6 +71,7 @@ void sendSMS(int id, const char* phone, const char* content){
     boolean smsStatus = sms.SendSMS((char*)phone, (char*)content);
     if (smsStatus == 1) {
       Serial.println("Gui tin nhan thanh cong :)");
+      requestApi(host, "act=sms&type=update_status_sent&sms_id="+id);
     }else{
       Serial.println("Gui tin nhan khong thanh cong :(");
     }  
