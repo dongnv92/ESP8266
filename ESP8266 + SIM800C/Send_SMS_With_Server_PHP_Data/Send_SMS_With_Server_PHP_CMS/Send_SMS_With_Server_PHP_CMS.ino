@@ -20,8 +20,8 @@ SMSGSM sms;
 #include <EEPROM.h>
 
 const String host         = "http://sms.xoidua.com/api/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
-const int   time_reload   = 10000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
-const int   time_send_sms = 1000;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
+const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
+const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
 
 void setup() {
@@ -38,7 +38,7 @@ void setup() {
 }
 
 void loop() {
-  String response = requestApi(host, "act=sms&type=get_sms_not_send&network=viettel");
+  String response = requestApi(host, "act=sms&type=not_send&network=viettel");
   processResponse(response);
   delay(time_reload);  //Time Post Data Reload
 }
@@ -69,14 +69,23 @@ void processResponse(String response){
 void sendSMS(int id, const char* phone, const char* content){
   if(started){
     boolean smsStatus = sms.SendSMS((char*)phone, (char*)content);
+    
+    String message_success  = "Gui tin nhan thanh cong den so: ";
+    String message_false    = "Gui tin nhan that bai den so: ";
+    message_success        += phone;
+    message_false          += phone;
+    
     if (smsStatus == 1) {
-      Serial.println("Gui tin nhan thanh cong :)");
-      requestApi(host, "act=sms&type=update_status_sent&sms_id="+id);
+      Serial.println(message_success);
+      String parameter_update = "act=sms&type=update_status_sent&sms_id=";
+      parameter_update += id;
+      String request_update = requestApi(host, parameter_update);
+      Serial.println(request_update);
     }else{
-      Serial.println("Gui tin nhan khong thanh cong :(");
+      Serial.println(message_false);
     }  
   }else{
-      Serial.println("Gui tin nhan khong thanh cong :(");
+      Serial.println("Loi GMS khong gui duoc tin nhan.");
   }  
 }
 
