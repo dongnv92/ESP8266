@@ -20,9 +20,12 @@ SMSGSM sms;
 #include <EEPROM.h>
 
 const String host         = "http://sms.xoidua.com/api/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
+const String imei         = "862273048557193"; // Seri SIM
 const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
+char *receive_sms_phone[160];// nội dung tin nhắn 
+char *receive_sms_content[20]; // số điện thoại format theo định dạng quốc tế
 
 void setup() {
   Serial.begin(9600);
@@ -38,7 +41,9 @@ void setup() {
 }
 
 void loop() {
-  String response = requestApi(host, "act=sms&type=not_send&network=viettel");
+  String request_loop_data  = "act=sms&type=not_send&imei=";
+  request_loop_data += imei;
+  String response           = requestApi(host, request_loop_data);
   processResponse(response);
   delay(time_reload);  //Time Post Data Reload
 }
@@ -57,28 +62,94 @@ void processResponse(String response){
   JsonArray repos = doc["data"];
   // Print the values
   Serial.println("Dang phan tich du lieu lay duoc tu server gui ve ...");
-  for (JsonObject repo : repos) { 
+  int countSms = 0;
+  for (JsonObject repo : repos) {
+    countSms ++;
+    // Thông Báo Đếm Tin Nhắn
+    String message_start_cout_sms = "..... TIN NHAN THU ";
+    message_start_cout_sms += countSms;
+    message_start_cout_sms += " ......";
+    
+    Serial.println(message_start_cout_sms);
     const int id        = repo["sms_id"];
     const char* phone   = repo["sms_phone"];
     const char* content = repo["sms_content"];
+
+    String sms_info_id        = "ID SMS: ";
+    sms_info_id += id;
+    Serial.println(sms_info_id);
+    String sms_info_phone     = "SO DIEN THOAI NHAN: ";
+    sms_info_phone += phone;
+    Serial.println(sms_info_phone);
+    String sms_info_content   = "NOI DUNG: ";
+    sms_info_content += content;
+    Serial.println(sms_info_content);
+    
+    // Gọi Hàm Gửi Tin Nhắn
     sendSMS(id, phone, content);        
     delay(time_send_sms);
   }
+  if(countSms == 0){
+      Serial.println("Khong Nhan Duoc Tin Nhan Nao De Gui");
+  }
 }
 
-void sendSMS(int id, const char* phone, const char* content){
+// Hàm nhận tin nhắn và gửi lên Server
+void receiveSMS(){
+  Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
   if(started){
-    boolean smsStatus = sms.SendSMS((char*)phone, (char*)content);
-    
+    int pos; //địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
+    pos = sms.IsSMSPresent(SMS_UNREAD); // kiểm tra tin nhắn chưa đọc trong bộ nhớ     
+    //hàm này sẽ trả về giá trị trong khoảng từ 0-40     
+    //nêu có tin nhắn chưa đọc
+    if((int)pos){
+      if(sms.GetSMS(pos, receive_sms_phone, receive_sms_content, 160)){  
+        // Hiển thị thông tin tin nhắn nhận được
+        Serial.print("SO DIEN THOAI: ");      
+        Serial.println(receive_sms_phone);         
+        Serial.print("NOI DUNG: ");         
+        Serial.println(receive_sms_content);
+        
+        String parameter_receive  = "act=sms&type=receive&sms_phone=";
+        parameter_receive        += receive_sms_phone;
+        parameter_receive        += "&sms_content=";
+        parameter_receive        += receive_sms_content;        
+        parameter_receive        += "&imei=";
+        parameter_receive        += imei;        
+        
+        String request_receive    = requestApi(host, parameter_update); // Gửi tin nhắn nhận được lên Server
+        Serial.println(request_receive);
+        sms.DeleteSMS(byte(pos));//xóa sms vừa nhận
+      }     
+    }else{
+      Serial.println("Chua co tin nhan nao chua doc."); 
+    }
+  }else{
+    Serial.println("SIM dang khong hoat dong.");
+  }
+  Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
+}
+
+
+// Hàm gửi tin nhắn và update lên Server
+void sendSMS(int id, const char* phone, const char* content){
+  String message_intro = "DANG THUC HIEN GUI TIN NHAN ID:";
+  message_intro += id;
+  message_intro += " , SO DIEN THOAI: ";
+  message_intro += phone;
+  Serial.println(message_intro);
+  if(started){
+    boolean smsStatus       = sms.SendSMS((char*)phone, (char*)content);
     String message_success  = "Gui tin nhan thanh cong den so: ";
     String message_false    = "Gui tin nhan that bai den so: ";
     message_success        += phone;
     message_false          += phone;
-    
     if (smsStatus == 1) {
       Serial.println(message_success);
       String parameter_update = "act=sms&type=update_status_sent&sms_id=";
       parameter_update += id;
+      parameter_update += "&imei=";
+      parameter_update += imei;
       String request_update = requestApi(host, parameter_update);
       Serial.println(request_update);
     }else{
