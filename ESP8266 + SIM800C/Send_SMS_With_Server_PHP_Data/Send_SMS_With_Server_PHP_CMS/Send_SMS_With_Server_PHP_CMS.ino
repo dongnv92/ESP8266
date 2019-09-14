@@ -24,8 +24,6 @@ const String imei         = "862273048557193"; // Seri SIM
 const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
-char *receive_sms_phone;// Số điện thoại gửi đến
-char *receive_sms_content; // Nội dung tin nhắn
 
 void setup() {
   Serial.begin(9600);
@@ -47,9 +45,6 @@ void loop() {
   
   // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
-  
-  // Gửi tin nhắn nhận được lên server
-  receiveSMS();
   
   delay(time_reload);  //Time Post Data Reload
 }
@@ -100,16 +95,19 @@ void processResponse(String response){
   }
 }
 
+
 // Hàm nhận tin nhắn và gửi lên Server
 void receiveSMS(){
   Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
   if(started){
-    byte pos; //địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
+    char *receive_sms_phone;            // Số điện thoại gửi đến
+    char *receive_sms_content;          // Nội dung tin nhắn   
+    byte pos;                           // Địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
     pos = sms.IsSMSPresent(SMS_UNREAD); // kiểm tra tin nhắn chưa đọc trong bộ nhớ     
     //hàm này sẽ trả về giá trị trong khoảng từ 0-40     
     //nêu có tin nhắn chưa đọc
     if(pos > 0){
-      if(sms.GetSMS(pos, receive_sms_phone, 20, receive_sms_content, 320)){  
+      if(sms.GetSMS(pos, receive_sms_phone, 20, receive_sms_content, 160)){  
         // Hiển thị thông tin tin nhắn nhận được
         Serial.print("SO DIEN THOAI: ");      
         Serial.println(receive_sms_phone);         
