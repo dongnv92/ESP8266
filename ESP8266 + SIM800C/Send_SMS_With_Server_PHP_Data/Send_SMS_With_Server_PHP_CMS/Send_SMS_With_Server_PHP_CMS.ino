@@ -24,8 +24,8 @@ const String imei         = "862273048557193"; // Seri SIM
 const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
-char *receive_sms_phone[160];// nội dung tin nhắn 
-char *receive_sms_content[20]; // số điện thoại format theo định dạng quốc tế
+char *receive_sms_phone;// Số điện thoại gửi đến
+char *receive_sms_content; // Nội dung tin nhắn
 
 void setup() {
   Serial.begin(9600);
@@ -44,7 +44,13 @@ void loop() {
   String request_loop_data  = "act=sms&type=not_send&imei=";
   request_loop_data += imei;
   String response           = requestApi(host, request_loop_data);
+  
+  // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
+  
+  // Gửi tin nhắn nhận được lên server
+  receiveSMS();
+  
   delay(time_reload);  //Time Post Data Reload
 }
 
@@ -98,12 +104,12 @@ void processResponse(String response){
 void receiveSMS(){
   Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
   if(started){
-    int pos; //địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
+    byte pos; //địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
     pos = sms.IsSMSPresent(SMS_UNREAD); // kiểm tra tin nhắn chưa đọc trong bộ nhớ     
     //hàm này sẽ trả về giá trị trong khoảng từ 0-40     
     //nêu có tin nhắn chưa đọc
-    if((int)pos){
-      if(sms.GetSMS(pos, receive_sms_phone, receive_sms_content, 160)){  
+    if(pos > 0){
+      if(sms.GetSMS(pos, receive_sms_phone, 20, receive_sms_content, 320)){  
         // Hiển thị thông tin tin nhắn nhận được
         Serial.print("SO DIEN THOAI: ");      
         Serial.println(receive_sms_phone);         
@@ -117,7 +123,7 @@ void receiveSMS(){
         parameter_receive        += "&imei=";
         parameter_receive        += imei;        
         
-        String request_receive    = requestApi(host, parameter_update); // Gửi tin nhắn nhận được lên Server
+        String request_receive    = requestApi(host, parameter_receive); // Gửi tin nhắn nhận được lên Server
         Serial.println(request_receive);
         sms.DeleteSMS(byte(pos));//xóa sms vừa nhận
       }     
