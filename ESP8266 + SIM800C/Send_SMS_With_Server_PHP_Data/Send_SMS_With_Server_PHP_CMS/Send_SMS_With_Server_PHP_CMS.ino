@@ -24,8 +24,6 @@ const String imei         = "862273048557193"; // Seri SIM
 const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
-char *receive_sms_phone;// Số điện thoại gửi đến
-char *receive_sms_content; // Nội dung tin nhắn
 
 void setup() {
   Serial.begin(9600);
@@ -43,14 +41,9 @@ void setup() {
 void loop() {
   String request_loop_data  = "act=sms&type=not_send&imei=";
   request_loop_data += imei;
-  String response           = requestApi(host, request_loop_data);
-  
+  String response    = requestApi(host, request_loop_data); 
   // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
-  
-  // Gửi tin nhắn nhận được lên server
-  receiveSMS();
-  
   delay(time_reload);  //Time Post Data Reload
 }
 
@@ -99,43 +92,6 @@ void processResponse(String response){
       Serial.println("Khong Nhan Duoc Tin Nhan Nao De Gui");
   }
 }
-
-// Hàm nhận tin nhắn và gửi lên Server
-void receiveSMS(){
-  Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
-  if(started){
-    byte pos; //địa chỉ bộ nhớ sim (sim luu tối đa 40 sms nên max pos = 40)     
-    pos = sms.IsSMSPresent(SMS_UNREAD); // kiểm tra tin nhắn chưa đọc trong bộ nhớ     
-    //hàm này sẽ trả về giá trị trong khoảng từ 0-40     
-    //nêu có tin nhắn chưa đọc
-    if(pos > 0){
-      if(sms.GetSMS(pos, receive_sms_phone, 20, receive_sms_content, 320)){  
-        // Hiển thị thông tin tin nhắn nhận được
-        Serial.print("SO DIEN THOAI: ");      
-        Serial.println(receive_sms_phone);         
-        Serial.print("NOI DUNG: ");         
-        Serial.println(receive_sms_content);
-        
-        String parameter_receive  = "act=sms&type=receive&sms_phone=";
-        parameter_receive        += receive_sms_phone;
-        parameter_receive        += "&sms_content=";
-        parameter_receive        += receive_sms_content;        
-        parameter_receive        += "&imei=";
-        parameter_receive        += imei;        
-        
-        String request_receive    = requestApi(host, parameter_receive); // Gửi tin nhắn nhận được lên Server
-        Serial.println(request_receive);
-        sms.DeleteSMS(byte(pos));//xóa sms vừa nhận
-      }     
-    }else{
-      Serial.println("Chua co tin nhan nao chua doc."); 
-    }
-  }else{
-    Serial.println("SIM dang khong hoat dong.");
-  }
-  Serial.println("..... DOC TIN NHAN NHAN DUOC .....");
-}
-
 
 // Hàm gửi tin nhắn và update lên Server
 void sendSMS(int id, const char* phone, const char* content){

@@ -1,0 +1,4 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "examples\\AHT_SIM800_AT\\AHT_SIM800_AT.ino"
+}
