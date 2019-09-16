@@ -44,8 +44,43 @@ void loop() {
   String response    = requestApi(host, request_loop_data); 
   // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
+
+  // Đọc tin nhắn chưa xem và gửi dữ liệu lên Server
+  //receiveSMS();
+  
   delay(time_reload);  //Time Post Data Reload
 }
+
+// Hàm đọc tin nhắn xem và gửi thông tin lên server
+void receiveSMS(){
+  Serial.println("DOC TIN NHAN CHUA DOC START");
+  if(started){
+    byte position_sms;
+    char *sms_receive_phone;
+    char *sms_receive_content;
+    position_sms = sms.IsSMSPresent(SMS_UNREAD);
+    if(sms.GetSMS(position_sms, sms_receive_phone, 20, sms_receive_content, 160)){
+        Serial.print("SO DIEN THOAI: ");
+        Serial.println(sms_receive_phone);
+        Serial.print("NOI DUNG: ");
+        Serial.println(sms_receive_content);
+        String paraReceiveSms     = "act=sms&type=receive&imei=";
+        paraReceiveSms           += imei;
+        paraReceiveSms           += "&sms_phone=";
+        paraReceiveSms           += sms_receive_phone;
+        paraReceiveSms           += "&sms_content=";
+        paraReceiveSms           += sms_receive_content;
+        String requestReceiveSMS  = requestApi(host, paraReceiveSms);
+        Serial.println(requestReceiveSMS);        
+    }else{
+      Serial.println("CHUA CO TIN NHAN NAO CHUA DUOC DOC");
+    }
+  }else{
+    Serial.println("MANG GMS KHONG HOAT DONG");  
+  }
+  Serial.println("DOC TIN NHAN CHUA DOC END");
+}
+
 
 // Hàm xử lý chuỗi JSON nhận về
 void processResponse(String response){
@@ -65,27 +100,27 @@ void processResponse(String response){
   for (JsonObject repo : repos) {
     countSms ++;
     // Thông Báo Đếm Tin Nhắn
-    String message_start_cout_sms = "..... TIN NHAN THU ";
-    message_start_cout_sms += countSms;
-    message_start_cout_sms += " ......";
-    
-    Serial.println(message_start_cout_sms);
+    Serial.print("..... GUI TIN NHAN THU ");
+    Serial.print(countSms);
+    Serial.println(" .....");
     const int id        = repo["sms_id"];
     const char* phone   = repo["sms_phone"];
     const char* content = repo["sms_content"];
 
-    String sms_info_id        = "ID SMS: ";
-    sms_info_id += id;
-    Serial.println(sms_info_id);
-    String sms_info_phone     = "SO DIEN THOAI NHAN: ";
-    sms_info_phone += phone;
-    Serial.println(sms_info_phone);
-    String sms_info_content   = "NOI DUNG: ";
-    sms_info_content += content;
-    Serial.println(sms_info_content);
+    Serial.print("ID SMS: ");
+    Serial.println(id);
+    Serial.print("SO DIEN THOAI: ");
+    Serial.println(phone);
+    Serial.print("NOI DUNG: ");
+    Serial.println(content);
     
     // Gọi Hàm Gửi Tin Nhắn
-    sendSMS(id, phone, content);        
+    sendSMS(id, phone, content);
+
+    Serial.print("..... GUI TIN NHAN THU ");
+    Serial.print(countSms);
+    Serial.println(" .....");
+    
     delay(time_send_sms);
   }
   if(countSms == 0){
@@ -139,14 +174,11 @@ String WifiSetup(){
 // Hàm lấy dữ liệu từ Server về
 String requestApi(String host, String parameter) {
   Serial.println("Dang khoi dong ket noi den Server ...");
-  HTTPClient http;    //Declare object of class HTTPClient
-  String postData;
-  //Post Data
-  postData = parameter;
-  http.begin(host);              //Specify request destination
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");    //Specify content-type header
-  int httpCode = http.POST(postData);   //Send the request
-  String payload = http.getString();    //Get the response payload
-  http.end();  //Close connection
+  HTTPClient http;
+  http.begin(host);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  int httpCode    = http.POST(parameter);
+  String payload  = http.getString();
+  http.end();
   return payload;
 }
