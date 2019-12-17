@@ -19,10 +19,11 @@ SMSGSM sms;
 #include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
 #include <EEPROM.h>
 
-const String host         = "http://sms.xoidua.com/api/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
+const String host         = "http://api.buynhanh.com/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
 const String imei         = "862273048557193"; // Seri SIM
-const int   time_reload   = 15000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
-const int   time_send_sms = 1500;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
+const String access_token = "OFBjYlIzTzNxeTFFaUJmcWRxNkFNQT09"; // Access Token Client
+const int   time_reload   = 10000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
+const int   time_send_sms = 1000;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
 
 void setup() {
@@ -39,48 +40,17 @@ void setup() {
 }
 
 void loop() {
-  String request_loop_data  = "act=sms&type=not_send&imei=";
-  request_loop_data += imei;
-  String response    = requestApi(host, request_loop_data); 
+  String url_loop_data = "http://api.buynhanh.com/client/get_sms/";
+  url_loop_data += imei;
+  url_loop_data += "/";
+  String request_loop_data  = "access_token=";
+  request_loop_data += access_token;
+
+  String response    = requestApi(url_loop_data, request_loop_data); 
   // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
-
-  // Đọc tin nhắn chưa xem và gửi dữ liệu lên Server
-  //receiveSMS();
-  
   delay(time_reload);  //Time Post Data Reload
 }
-
-// Hàm đọc tin nhắn xem và gửi thông tin lên server
-void receiveSMS(){
-  Serial.println("DOC TIN NHAN CHUA DOC START");
-  if(started){
-    byte position_sms;
-    char *sms_receive_phone;
-    char *sms_receive_content;
-    position_sms = sms.IsSMSPresent(SMS_UNREAD);
-    if(sms.GetSMS(position_sms, sms_receive_phone, 20, sms_receive_content, 160)){
-        Serial.print("SO DIEN THOAI: ");
-        Serial.println(sms_receive_phone);
-        Serial.print("NOI DUNG: ");
-        Serial.println(sms_receive_content);
-        String paraReceiveSms     = "act=sms&type=receive&imei=";
-        paraReceiveSms           += imei;
-        paraReceiveSms           += "&sms_phone=";
-        paraReceiveSms           += sms_receive_phone;
-        paraReceiveSms           += "&sms_content=";
-        paraReceiveSms           += sms_receive_content;
-        String requestReceiveSMS  = requestApi(host, paraReceiveSms);
-        Serial.println(requestReceiveSMS);        
-    }else{
-      Serial.println("CHUA CO TIN NHAN NAO CHUA DUOC DOC");
-    }
-  }else{
-    Serial.println("MANG GMS KHONG HOAT DONG");  
-  }
-  Serial.println("DOC TIN NHAN CHUA DOC END");
-}
-
 
 // Hàm xử lý chuỗi JSON nhận về
 void processResponse(String response){
@@ -104,7 +74,7 @@ void processResponse(String response){
     Serial.print(countSms);
     Serial.println(" .....");
     const int id        = repo["sms_id"];
-    const char* phone   = repo["sms_phone"];
+    const char* phone   = repo["sms_phone_receive"];
     const char* content = repo["sms_content"];
 
     Serial.print("ID SMS: ");
@@ -143,18 +113,75 @@ void sendSMS(int id, const char* phone, const char* content){
     message_false          += phone;
     if (smsStatus == 1) {
       Serial.println(message_success);
-      String parameter_update = "act=sms&type=update_status_sent&sms_id=";
-      parameter_update += id;
-      parameter_update += "&imei=";
-      parameter_update += imei;
-      String request_update = requestApi(host, parameter_update);
+      
+      String url_update_success = "http://api.buynhanh.com/client/update_sms/";
+      url_update_success+= id;
+      url_update_success+= "/";
+      
+      String param_update_success = "access_token=";
+      param_update_success+= access_token;
+      param_update_success+= "&imei=";
+      param_update_success+= imei;
+      param_update_success+= "&status=DONE";
+      
+      String request_update = requestApi(url_update_success, param_update_success);
       Serial.println(request_update);
     }else{
+      String url_update_success = "http://api.buynhanh.com/client/update_sms/";
+      url_update_success+= id;
+      url_update_success+= "/";
+      
+      String param_update_success = "access_token=";
+      param_update_success+= access_token;
+      param_update_success+= "&imei=";
+      param_update_success+= imei;
+      param_update_success+= "&status=UNSEND";
+      
+      String request_update = requestApi(url_update_success, param_update_success);
+      Serial.println(request_update);
       Serial.println(message_false);
     }  
   }else{
       Serial.println("Loi GMS khong gui duoc tin nhan.");
   }  
+}
+
+// Hàm Gửi SMS nhận được lên Server
+void receiveSMS(){
+  byte position_sms;
+  char *sms_receive_phone;
+  char *sms_receive_content;
+
+  Serial.println(".... READ SMS START ...");
+  
+  position_sms = sms.IsSMSPresent(SMS_UNREAD);
+  Serial.println("... READ NEW SMS POSITION ...");
+  
+  if (position_sms) {
+    delay(100);
+    Serial.print(F("... VI TRI SMS: "));
+    Serial.println(position_sms);
+    if(sms.GetSMS(position_sms, sms_receive_phone, 20, sms_receive_content, 160)){
+      Serial.print("... SO DIEN THOAI: ");
+      Serial.println(String(sms_receive_phone));
+      Serial.print("... NOI DUNG: ");
+      Serial.println(String(sms_receive_content));
+      String paraReceiveSms     = "act=sms&type=receive&imei=";
+      paraReceiveSms           += imei;
+      paraReceiveSms           += "&sms_phone=";
+      paraReceiveSms           += sms_receive_phone;
+      paraReceiveSms           += "&sms_content=";
+      paraReceiveSms           += sms_receive_content;
+      String requestReceiveSMS  = requestApi(host, paraReceiveSms);
+      Serial.println(requestReceiveSMS);        
+    } else {
+      Serial.println(F("CHUA CO TIN NHAN NAO CHUA DUOC DOC"));
+    }
+  } else {
+    Serial.println(F("KHONG CO TIN NHAN MOI"));
+  }
+  Serial.println(F("READ SMS END"));
+  Serial.println();
 }
 
 // Hàm Setup Wifi Access: 192.168.4.1
@@ -163,7 +190,7 @@ String WifiSetup(){
   Serial.begin(115200);
   WiFiManager wifiManager;
   //wifiManager.resetSettings();    //Uncomment this to wipe WiFi settings from EEPROM on boot.  Comment out and recompile/upload after 1 boot cycle.
-  if (!wifiManager.autoConnect("GATEWAY SMS")) {
+  if (!wifiManager.autoConnect("GATEWAY SMS 7193")) {
     Serial.println("Ket noi that bai. Vui long thu lai.");
     ESP.reset();
     delay(1000);
