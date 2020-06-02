@@ -46,8 +46,8 @@ GSM::GSM()
 int GSM::begin(long baud_rate)
 {
 	 // Set pin modes
-	 //pinMode(GSM_ON,OUTPUT);
-	 //pinMode(GSM_RESET,OUTPUT);
+	 pinMode(GSM_ON,OUTPUT);
+	 pinMode(GSM_RESET,OUTPUT);
 
 #ifdef UNO
      if (baud_rate==115200) {
@@ -72,19 +72,19 @@ int GSM::begin(long baud_rate)
                Serial.println(F("DB:NO RESP"));
 #endif
                // generate turn on pulse
-               // digitalWrite(GSM_ON, HIGH);
-               // delay(1200);
-               // digitalWrite(GSM_ON, LOW);
-               // delay(10000);
-               // WaitResp(1000, 1000);
+               digitalWrite(GSM_ON, HIGH);
+               delay(1200);
+               digitalWrite(GSM_ON, LOW);
+               delay(10000);
+               WaitResp(1000, 1000);
           } else {
 #ifdef DEBUG_ON
                Serial.println(F("DB:ELSE"));
 #endif
                WaitResp(1000, 1000);
-               Serial.println("DEBUG begin 1");
           }
      }
+
 
      if (AT_RESP_OK == SendATCmdWaitResp(str_at, 500, 100, str_ok, 5)) {
 #ifdef DEBUG_ON
@@ -294,7 +294,7 @@ int GSM::begin(long baud_rate)
      }
 
      SetCommLineStatus(CLS_FREE);
-     Serial.println("DEBUG begin 2");
+
      if(turnedON) {
           WaitResp(50, 50);
           InitParam(PARAM_SET_0);
@@ -312,7 +312,6 @@ int GSM::begin(long baud_rate)
           _cell.print("\r"); // send <CR>
           return(0);
      }
-     Serial.println("DEBUG begin end");
 }
 
 
@@ -390,7 +389,6 @@ byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout,
      RxInit(start_comm_tmout, max_interchar_tmout);
      // wait until response is not finished
      do {
-          ESP.wdtFeed();
           status = IsRxFinished();
      } while (status == RX_NOT_FINISHED);
 
@@ -502,14 +500,12 @@ char GSM::SendATCmdWaitResp(const __FlashStringHelper *AT_cmd_string,
 
 byte GSM::WaitResp(uint16_t start_comm_tmout, uint16_t max_interchar_tmout)
 {
-     Serial.println("DEBUG WaitResp");
      byte status;
 
      RxInit(start_comm_tmout, max_interchar_tmout);
      // wait until response is not finished
      do {
           status = IsRxFinished();
-          ESP.wdtFeed();
      } while (status == RX_NOT_FINISHED);
      return (status);
 }
@@ -521,7 +517,7 @@ byte GSM::IsRxFinished(void)
 
      // Rx state machine
      // ----------------
-     
+
      if (rx_state == RX_NOT_STARTED) {
           // Reception is not started yet - check tmout
           if (!_cell.available()) {
@@ -652,11 +648,10 @@ byte GSM::IsStringReceived(char const *compare_string)
           	#endif
           */
 #ifdef DEBUG_ON
-          Serial.print("ATT COMPARE: ");
+          //Serial.print("ATT: ");
           Serial.println(compare_string);
-          Serial.print("AT RESPONSE: ");
+         // Serial.print("RIC: ");
           Serial.println((char *)comm_buf);
-          Serial.println("DEBUG IsStringReceived");
 #endif
           ch = strstr((char *)comm_buf, compare_string);
           if (ch != NULL) {

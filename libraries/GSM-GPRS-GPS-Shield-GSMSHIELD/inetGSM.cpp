@@ -36,7 +36,7 @@ String InetGSM::httpGET(const char* server, int port, const char* path)
           }
      }
 
-     if(!connected) return "";
+     if(!connected) return ;
 
      gsm.SimpleWrite("GET ");
      gsm.SimpleWrite(path);
