@@ -45,10 +45,10 @@ void loop() {
   url_loop_data += "/";
   String request_loop_data  = "access_token=";
   request_loop_data += access_token;
-
   String response    = requestApi(url_loop_data, request_loop_data); 
   // Lấy nội dung tin nhắn để nhắn tin
   processResponse(response);
+  receiveSMS();
   delay(time_reload);  //Time Post Data Reload
 }
 
