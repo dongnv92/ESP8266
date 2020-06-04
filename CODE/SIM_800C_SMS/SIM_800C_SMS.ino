@@ -19,16 +19,16 @@ SMSGSM sms;
 #include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
 #include <EEPROM.h>
 
-const String host         = "http://api.buynhanh.com/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
-const String imei         = "862273048557193"; // Seri SIM
-const String access_token = "OFBjYlIzTzNxeTFFaUJmcWRxNkFNQT09"; // Access Token Client
+const String host         = "http://smsapi.topcongty.vn/"; // Địa Chỉ URL Lấy Dữ Liệu Tin Nhắn
+const String imei         = "862273048557193"; // Seri Module SIM
+const String access_token = "MmJVb0ZVQVczUEhLVGl5T3pidkp4UT09"; // Access Token Client
 const int   time_reload   = 10000;  // Thời Gian Lỗi Lần Lấy Dữ Liệu.
 const int   time_send_sms = 1000;   // Thời Gian Mỗi Lần Nhắn Tin Khi Server Nhiều Tin Nhắn.
 boolean     started       = false;  // Trạng thái modul sim
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Arduino SIM800A Send SMS");
+  Serial.println("Arduino SIM800C Send SMS");
   Serial.println("Made by Nguyen Van Dong"); 
   if (gsm.begin(9600)) {
     Serial.println("\nstatus=READY");
@@ -37,13 +37,14 @@ void setup() {
     Serial.println("\nstatus=IDLE");  
   }
   WifiSetup();
+  deleteSMS();
 }
 
 void loop() {
-  String url_loop_data = "http://api.buynhanh.com/client/get_sms/";
+  String url_loop_data = "http://smsapi.topcongty.vn/client/get_sms/";
   url_loop_data += imei;
   url_loop_data += "/";
-  String request_loop_data  = "access_token=";
+  String request_loop_data  = "token=";
   request_loop_data += access_token;
   String response    = requestApi(url_loop_data, request_loop_data); 
   // Lấy nội dung tin nhắn để nhắn tin
@@ -113,29 +114,29 @@ void sendSMS(int id, const char* phone, const char* content){
     message_false          += phone;
     if (smsStatus == 1) {
       Serial.println(message_success);
-      
-      String url_update_success = "http://api.buynhanh.com/client/update_sms/";
+      String url_update_success = "http://smsapi.topcongty.vn/client/update_sms/";
       url_update_success+= id;
       url_update_success+= "/";
       
-      String param_update_success = "access_token=";
-      param_update_success+= access_token;
-      param_update_success+= "&imei=";
-      param_update_success+= imei;
-      param_update_success+= "&status=DONE";
+      String param_update_success = "token=";
+      param_update_success += access_token;
+      param_update_success += "&imei=";
+      param_update_success += imei;
+      param_update_success += "&status=DONE";
       
       String request_update = requestApi(url_update_success, param_update_success);
       Serial.println(request_update);
+      Serial.println(message_success);
     }else{
-      String url_update_success = "http://api.buynhanh.com/client/update_sms/";
-      url_update_success+= id;
-      url_update_success+= "/";
+      String url_update_success = "http://smsapi.topcongty.vn/client/update_sms/";
+      url_update_success += id;
+      url_update_success += "/";
       
-      String param_update_success = "access_token=";
-      param_update_success+= access_token;
-      param_update_success+= "&imei=";
-      param_update_success+= imei;
-      param_update_success+= "&status=UNSEND";
+      String param_update_success = "token=";
+      param_update_success += access_token;
+      param_update_success += "&imei=";
+      param_update_success += imei;
+      param_update_success += "&status=UNSEND";
       
       String request_update = requestApi(url_update_success, param_update_success);
       Serial.println(request_update);
@@ -146,14 +147,29 @@ void sendSMS(int id, const char* phone, const char* content){
   }  
 }
 
-// Hàm Gửi SMS nhận được lên Server
-void receiveSMS(){
+// Hàm xóa tất cả tin nhắn trong bộ nhớ
+void deleteSMS(){
   byte position_sms;
   char *sms_receive_phone;
   char *sms_receive_content;
+  Serial.println(".... DELETE ALL SMS START ...");
+  position_sms = sms.IsSMSPresent(SMS_ALL);
+  Serial.println("... READ SMS POSITION ...");
+  if (position_sms) {
+    sms.DeleteSMS(byte(position_sms));    
+  } else {
+    Serial.println(F("KHONG CO TIN NHAN"));
+  }
+  Serial.println(F("DELETE ALL SMS END"));
+  Serial.println();  
+}
 
+// Hàm Gửi SMS nhận được lên Server
+void receiveSMS(){
+  byte position_sms;
+  char sms_receive_phone[20];
+  char sms_receive_content[160];
   Serial.println(".... READ SMS START ...");
-  
   position_sms = sms.IsSMSPresent(SMS_UNREAD);
   Serial.println("... READ NEW SMS POSITION ...");
   
@@ -166,17 +182,21 @@ void receiveSMS(){
       Serial.println(String(sms_receive_phone));
       Serial.print("... NOI DUNG: ");
       Serial.println(String(sms_receive_content));
-      String paraReceiveSms     = "act=sms&type=receive&imei=";
+      String url_receive_sms = "http://smsapi.topcongty.vn/client/receive_sms/";        
+      String paraReceiveSms     = "imei=";
       paraReceiveSms           += imei;
-      paraReceiveSms           += "&sms_phone=";
+      paraReceiveSms           += "&token=";
+      paraReceiveSms           += access_token;
+      paraReceiveSms           += "&phone_send=";
       paraReceiveSms           += sms_receive_phone;
-      paraReceiveSms           += "&sms_content=";
+      paraReceiveSms           += "&content=";
       paraReceiveSms           += sms_receive_content;
-      String requestReceiveSMS  = requestApi(host, paraReceiveSms);
+      String requestReceiveSMS  = requestApi(url_receive_sms, paraReceiveSms);
       Serial.println(requestReceiveSMS);        
     } else {
       Serial.println(F("CHUA CO TIN NHAN NAO CHUA DUOC DOC"));
     }
+    sms.DeleteSMS(byte(position_sms));
   } else {
     Serial.println(F("KHONG CO TIN NHAN MOI"));
   }
